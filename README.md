@@ -8,7 +8,6 @@ After realizing that GitHub and GitLab's API Keys expire and I would have to upd
 
 Herein lies my attempt.
 
-----
 
 ## Usage
 The script uses Python's builtin modules so no external dependencies are required.
@@ -19,8 +18,6 @@ Copy **settings.json.example** to **settings.json** and edit it accordingly.
 
 Add any repositories you do not want to sync to the **gitea_ignore_sync** section.
 
-
-----
 
 ## What it doesn't do
 
@@ -37,13 +34,10 @@ It doesn't handle Exceptions like it probably should.
 These features may or may not be added in the future - time permitting.
 
 
-----
-
 ## What it does do
 
 Exactly what I needed it to -- update GitHub/GitLab API keys on my push mirrors :)
 
-----
 
 ## Links
 - https://docs.gitea.com/next/usage/repo-mirror
