@@ -12,7 +12,7 @@ Herein lies my attempt.
 ## Usage
 The script uses Python's builtin modules so no external dependencies are required.
 
-Note that I organize my repositories in Organizations (Gitea, GitHub) and Groups (GitLab) and this script manages the mirrors using that layout.
+I organize my repositories in Organizations (Gitea, GitHub) and Groups (GitLab) and this script manages the mirrors using that layout.
 
 Create API keys in [Gitea](https://docs.gitea.com/development/api-usage), [GitHub](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) and [GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) - or wherever you want to push to.
 
@@ -37,12 +37,12 @@ It doesn't handle Exceptions like it probably should.
 
 These features may or may not be added in the future - time permitting.
 
-I am always open to working with anyone to improve my code.
+Any pull requests improving the code and/or performance are welcomed.
 
 
 ## What it does do
 
-Exactly what I needed it to -- update GitHub/GitLab API keys on my push mirrors :)
+Exactly what I needed it to -- update GitHub/GitLab API keys on my Gitea push mirrors :)
 
 
 ## Links
