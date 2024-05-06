@@ -1,0 +1,28 @@
+{
+  "gitea_api_url": "https://my.gitea.arpa/api/v1",
+  "gitea_api_token": "lettersandnumbers1234",
+  "gitea_ignore_sync": [
+      {
+          "owner": "gitea_org_1",
+          "name": "repoone"
+      },
+      {
+          "owner": "gitea_org_2",
+          "name": "repotwo"
+      }
+  ],
+  "remote_git_servers": [
+      {
+          "api_url": "https://api.github.com",
+          "base_url": "https://github.com",
+          "username": "ghusername",
+          "password": "ghp_lettersandnumbers1234"
+      },
+      {
+          "api_url": "https://gitlab.com/api/v4/projects/",
+          "base_url": "https://gitlab.com",
+          "username": "glusername",
+          "password": "glpat-lettersandnumbers1234"
+      }
+  ]
+}

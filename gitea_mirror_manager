@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""
+Gitea Mirror Manager
+
+Description: Maintain Gitea repository remote mirrors
+Author: Chuck Nemeth
+
+https://docs.python.org/3/howto/urllib2.html
+https://try.gitea.io/api/swagger
+https://docs.gitea.com/development/api-usage
+https://dev.to/ultrainstinct05/using-the-python-urllib-module-for-making-web-requests-5hkm
+"""
+import json
+import socket
+import sys
+from urllib.request import Request, urlopen
+from urllib.error import URLError
+
+settings_file = 'settings.json'
+
+try:
+    with open(settings_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+        api_url = config['gitea_api_url']
+        org_url = f'{api_url}/orgs'
+        gitea_api_token = config['gitea_api_token']
+        gitea_ignore_sync = config['gitea_ignore_sync']
+        remote_git_servers = config['remote_git_servers']
+
+except (FileNotFoundError, NameError) as error:
+    print(error)
+    sys.exit(1)
+
+except KeyError as error:
+    print(f'KeyError: {error}')
+    sys.exit(1)
+
+
+# How long a socket should wait for a response before timing out
+timeout = 10
+socket.setdefaulttimeout(timeout)
+
+
+def process_request(request, token=gitea_api_token):
+    """
+    Process JSON formatted request data
+
+    Args:
+        request: JSON formatted request content
+
+    Returns:
+        JSON formatted response data
+    """
+    try:
+        request.add_header("Authorization", f"token {token}")
+        with urlopen(request) as response:
+            if response.status == 204:
+                response_data = "Success"
+            else:
+                try:
+                    response_data =  json.loads(response.read().decode('utf-8'))
+
+                except ValueError as value_error:
+                    print('[ERROR] Malformed JSON!')
+                    print(f'{value_error}')
+                    sys.exit(1)
+
+    except URLError as e:
+        if hasattr(e, 'reason'):
+            print('[ERROR] Failed to reach a server!')
+            print(f'Reason: {e.reason}')
+
+        elif hasattr(e, 'code'):
+            print('[ERROR] The server couldn\'t fulfill the request!')
+            print(f'Error code: {e.code}')
+
+        sys.exit(1)
+
+    return response_data
+
+
+def get_request(url):
+    """
+    Perform a GET request
+
+    Args:
+        url: web address to query
+
+    Returns:
+        JSON formatted response data
+    """
+    try:
+        req = Request(url)
+
+    except Exception as e:
+        print("[ERROR] Failed to get_request()")
+        print(e)
+        sys.exit(1)
+
+    return process_request(req)
+
+
+def post_request(url, body):
+    """
+    Perform a POST request
+
+    Args:
+        url: web address to send POST request to
+        body: body contents to POST
+
+    Returns:
+        JSON formatted response data
+    """
+    try:
+        req = Request(url, data = bytes(body.encode("utf-8")), method = "POST")
+        req.add_header("Content-type", "application/json; charset=UTF-8")
+
+    except Exception as e:
+        print("[ERROR] Failed to post_request()")
+        print(e)
+        sys.exit(1)
+
+    return process_request(req)
+
+
+def delete_request(url):
+    """
+    Perform a DELETE request
+
+    Args:
+        url: web address to send DELETE request to
+
+    Returns:
+        JSON formatted response data
+    """
+    try:
+        req = Request(url, method = "DELETE")
+
+    except Exception as e:
+        print("[ERROR] Failed to post_request()")
+        print(e)
+        sys.exit(1)
+
+    return process_request(req)
+
+
+def get_orgs(url):
+    """
+    Query Gitea for organization names
+
+    Args:
+        url: web address to query for organization names
+
+    Yields:
+        Organization names
+    """
+    try:
+        for org in get_request(url):
+            yield org['name']
+
+    except Exception as e:
+        print("[ERROR] Failed to get_orgs()")
+        print(e)
+        sys.exit(1)
+
+
+def get_repos(url, owner):
+    """
+    Query Gitea for repository names
+
+    Args:
+        owner: name of the organization or owner of the Gitea repository
+
+    Yields:
+        repository names
+    """
+    try:
+        repo_url = f"{url}/{owner}/repos"
+        for repo in get_request(repo_url):
+            yield repo['name']
+
+    except Exception as e:
+        print("[ERROR] Failed to get_repos()")
+        print(e)
+        sys.exit(1)
+
+
+def get_mirrors(url, owner, repo):
+    """
+    Query Gitea for remote repository mirrors
+
+    Args:
+        owner: name of the organization or owner of the Gitea repository
+        repo: name of the Gitea repository
+
+    Yields:
+        remote mirror names
+    """
+    try:
+        mirror_url = f"{url}/repos/{owner}/{repo}/push_mirrors"
+        for mirror in get_request(mirror_url):
+            yield mirror['remote_name']
+
+    except Exception as e:
+        print("[ERROR] Failed to get_mirrors()")
+        print(e)
+        sys.exit(1)
+
+
+def add_mirror(owner, repo, remote_address, remote_password, remote_username):
+    """
+    Add remote mirror to Gitea repository
+
+    Args:
+        owner: name of the organization or owner of the Gitea repository
+        repo: name of the Gitea repository
+        remote_address: URL of the remote repository to mirror to
+        remote_password: API key for authenticating to the remote repository
+
+    Returns:
+        JSON formatted response data
+    """
+    url = f"{api_url}/repos/{owner}/{repo}/push_mirrors"
+    interval = '8h0m0s'
+    content = f"""\
+{{
+  "interval": "{interval}",
+  "remote_address": "{remote_address}",
+  "remote_password": "{remote_password}",
+  "remote_username": "{remote_username}",
+  "sync_on_commit": true
+}}
+"""
+    try:
+        result = post_request(url, content)
+
+    except Exception as e:
+        print("[ERROR] Failed to add_mirror()")
+        print(e)
+        sys.exit(1)
+
+    return result
+
+
+def delete_mirror(url, owner, repo, mirror):
+    """
+    Delete remote mirror of a Gitea repository
+
+    Args:
+        owner: name of the organization or owner of the Gitea repository
+        repo: name of the Gitea repository
+
+    Returns:
+        JSON formatted response data
+    """
+    mirror_url = f"{url}/repos/{owner}/{repo}/push_mirrors/{mirror}"
+
+    try:
+        result = delete_request(mirror_url)
+
+    except Exception as e:
+        print("[ERROR] Failed to delete_mirror()")
+        print(e)
+        sys.exit(1)
+
+    return result
+
+
+def main():
+    """
+    Do stuff and make things happen
+    """
+    ignore_repos = []
+    sync_repos = []
+
+    print("[INFO] Checking for repositories to ignore")
+    for repo in gitea_ignore_sync:
+        ignore_repos.append(repo['name'])
+    print()
+
+    print("[INFO] Querying Gitea for organizations")
+    for org in get_orgs(org_url):
+        gitea_repos = get_repos(org_url, org)
+
+        # TODO What if there's two repos same name in different orgs but want one synced?
+        print(f"[INFO] Creating list of repositories to mirror from {org}")
+        for repo in gitea_repos:
+            if repo not in ignore_repos:
+                gitea_mirrors = get_mirrors(api_url, org, repo)
+                repository = {'name': repo, 'owner': org, 'mirrors': list(gitea_mirrors)}
+                sync_repos.append(repository)
+    print()
+
+    print("[INFO] Starting process of mirror updates")
+    for repo in sync_repos:
+        repo_owner = repo['owner']
+        repo_name = repo['name']
+
+        if repo['mirrors']:
+            for mirror in repo['mirrors']:
+                print(f"[INFO] Deleting {mirror} from the {repo_name} repository.")
+                delete_mirror(api_url, repo_owner, repo_name, mirror)
+
+        for host in remote_git_servers:
+            remote_url = host['base_url']
+            username = host['username']
+            password = host['password']
+            address = f"{remote_url}/{repo_owner}/{repo_name}.git"
+
+            print(f"[INFO] Adding push mirror to {address}.")
+            add_mirror(repo_owner, repo_name, address, password, username)
+        print()
+
+
+if __name__ == '__main__':
+    try:
+        main()
+
+    except Exception:
+        sys.exit(1)
+
+# TODO: better Exception handling
+
+# vim: ft=python ts=4 sts=4 sw=4 sr et
