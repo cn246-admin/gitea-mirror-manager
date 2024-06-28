@@ -266,6 +266,20 @@ def delete_mirror(url, owner, repo, mirror):
     return result
 
 
+def prompt_user(repository):
+    """
+    Prompt user for confirmation
+
+    Returns:
+        True for a 'y' or 'Y' answer
+        False for any other answer
+    """
+    answer = input(f"[WARN] Are you sure you want to sync {repository}? [y|n]: ")
+    if answer.lower() == "y":
+        return True
+    return False
+
+
 def main():
     """
     Do stuff and make things happen
@@ -292,23 +306,27 @@ def main():
     print()
 
     print("[INFO] Starting process of mirror updates")
+    print()
     for repo in sync_repos:
         repo_owner = repo['owner']
         repo_name = repo['name']
 
-        if repo['mirrors']:
-            for mirror in repo['mirrors']:
-                print(f"[INFO] Deleting {mirror} from the {repo_name} repository.")
-                delete_mirror(api_url, repo_owner, repo_name, mirror)
+        if prompt_user(repo_name):
+            if repo['mirrors']:
+                for mirror in repo['mirrors']:
+                    print(f"[INFO] Deleting {mirror} from the {repo_name} repository.")
+                    delete_mirror(api_url, repo_owner, repo_name, mirror)
 
-        for host in remote_git_servers:
-            remote_url = host['base_url']
-            username = host['username']
-            password = host['password']
-            address = f"{remote_url}/{repo_owner}/{repo_name}.git"
+            for host in remote_git_servers:
+                remote_url = host['base_url']
+                username = host['username']
+                password = host['password']
+                address = f"{remote_url}/{repo_owner}/{repo_name}.git"
 
-            print(f"[INFO] Adding push mirror to {address}.")
-            add_mirror(repo_owner, repo_name, address, password, username)
+                print(f"[INFO] Adding push mirror to {address}.")
+                add_mirror(repo_owner, repo_name, address, password, username)
+        else:
+            print(f"[INFO] Okay, skipping {repo_name}!")
         print()
 
 
